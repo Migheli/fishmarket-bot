@@ -149,8 +149,6 @@ def handle_cart(bot, update):
     else:
         cart_id = update.callback_query.message.chat_id
         product_in_cart_id = update.callback_query.data
-
-        products_in_cart = get_cart_items(cart_id)['data']
         delete_item_from_cart(cart_id, product_in_cart_id)
 
 
