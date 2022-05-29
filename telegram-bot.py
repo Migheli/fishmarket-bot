@@ -128,14 +128,11 @@ def handle_description(bot, update):
                          )
         return "HANDLE_CART"
 
-    else:
-        cart_id = update.callback_query.message.chat_id
-        print(update.callback_query.data)
-        splitted = update.callback_query.data.split()
-        print(splitted)
-        quantity, product_id = splitted
-        print(product_id, cart_id, quantity)
-        add_product_to_cart(product_id, cart_id, quantity)
+    cart_id = update.callback_query.message.chat_id
+    splitted = update.callback_query.data.split()
+    quantity, product_id = splitted
+    print(product_id, cart_id, quantity)
+    add_product_to_cart(product_id, cart_id, quantity)
 
 
 def handle_cart(bot, update):
