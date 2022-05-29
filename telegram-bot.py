@@ -91,18 +91,9 @@ def handle_menu(bot, update):
 
 
 def handle_description(bot, update):
-    print(f'что прилетело в апдейте: {update.callback_query.data}')
+    #print(f'что прилетело в апдейте: {update.callback_query.data}')
     if update.callback_query.data == 'back':
-        products = get_product_catalogue()['data']
-        keyboard = []
-        for product in products:
-            product_button = [InlineKeyboardButton(product['name'], callback_data=product['id'])]
-            keyboard.append(product_button)
-        keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
-
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        chat_id = update['callback_query']['message']['chat']['id']
-        bot.send_message(chat_id=chat_id, text='Пожалуйста, выберите товар:', reply_markup=reply_markup)
+        show_main_menu(bot, update)
         return "HANDLE_MENU"
 
 
