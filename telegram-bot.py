@@ -19,6 +19,8 @@ _database = None
 
 def show_main_menu(update: Update, context: CallbackContext):
 
+
+
     products = get_product_catalogue()['data']
     keyboard = []
     for product in products:
@@ -28,27 +30,19 @@ def show_main_menu(update: Update, context: CallbackContext):
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    #print(f'Полученный апдейт в старте: {update}')
-
-    #if update.message:
-    #    update.message.reply_text('Пожалуйста, выберите товар:', reply_markup=reply_markup)
-    #if update.callback_query:
-    #if update.callback_query.data == 'at_cart':
-    #    chat_id = update['callback_query']['message']['chat']['id']
-    #    get_cart_items(chat_id)
-        #chat_id = update['callback_query']['message']['chat']['id']
     context.bot.send_message(chat_id=update.effective_chat.id, text='Пожалуйста, выберите товар:', reply_markup=reply_markup)
+
     return "HANDLE_MENU"
 
-#def start(update: Update, context: CallbackContext):
-#    show_main_menu()
-    #return "HANDLE_MENU"
 
 
 def handle_menu(update: Update, context: CallbackContext):
+
     if update.callback_query.data == 'at_cart':
-        chat_id = update.effective_chat.id
-        get_cart_items(chat_id)
+        print('сработало это условие!')
+        cart_id = update.effective_chat.id
+        cart_items = get_cart_items(cart_id)
+        print(f'результат вызова функции-гетера товаров {cart_items}')
 
     query = update.callback_query
     print(query.data)
