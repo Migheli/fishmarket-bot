@@ -196,7 +196,7 @@ def handle_cart(bot, update):
         chat_id = update['callback_query']['message']['chat']['id']
         bot.send_message(chat_id=chat_id, text='Пожалуйста, выберите товар:', reply_markup=reply_markup)
 
-        return "WAITING_EMAIL"
+        return "HANDLE_MENU"
     else:
         cart_id = update.callback_query.message.chat_id
         product_in_cart_id = update.callback_query.data
