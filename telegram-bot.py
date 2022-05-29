@@ -155,12 +155,8 @@ def handle_cart(bot, update):
         return "WAITING_EMAIL"
 
     if update.callback_query.data == 'back':
-        products = get_product_catalogue()['data']
-        keyboard = []
-        for product in products:
-            product_button = [InlineKeyboardButton(product['name'], callback_data=product['id'])]
-            keyboard.append(product_button)
-        keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
+        show_main_menu(bot, update)
+        return "HANDLE_MENU"
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         chat_id = update['callback_query']['message']['chat']['id']
