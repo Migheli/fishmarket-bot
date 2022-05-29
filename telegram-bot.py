@@ -18,12 +18,7 @@ _database = None
 
 
 def show_main_menu(bot, update):
-    """
-        Хэндлер для состояния START.
 
-        Бот отвечает пользователю фразой "Привет!" и переводит его в состояние ECHO.
-        Теперь в ответ на его команды будет запускаеться хэндлер echo.
-        """
     products = get_product_catalogue()['data']
     keyboard = []
     for product in products:
@@ -43,10 +38,6 @@ def show_main_menu(bot, update):
             get_cart_items(chat_id)
         chat_id = update['callback_query']['message']['chat']['id']
         bot.send_message(chat_id=chat_id, text='Пожалуйста, выберите товар:', reply_markup=reply_markup)
-
-    # update.message.reply_text(text='Привет!')
-
-    #return "HANDLE_MENU"
 
 
 def start(bot, update):
@@ -158,11 +149,6 @@ def handle_cart(bot, update):
         show_main_menu(bot, update)
         return "HANDLE_MENU"
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        chat_id = update['callback_query']['message']['chat']['id']
-        bot.send_message(chat_id=chat_id, text='Пожалуйста, выберите товар:', reply_markup=reply_markup)
-
-        return "HANDLE_MENU"
     else:
         cart_id = update.callback_query.message.chat_id
         product_in_cart_id = update.callback_query.data
