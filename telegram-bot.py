@@ -105,7 +105,7 @@ def handle_cart(update: Update, context: CallbackContext):
         show_main_menu(update, context)
         return "HANDLE_MENU"
 
-    cart_id, = update.effective_chat.id
+    cart_id = update.effective_chat.id
     product_in_cart_id = update.callback_query.data
     delete_item_from_cart(cart_id, product_in_cart_id)
 
