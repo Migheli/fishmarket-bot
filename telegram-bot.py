@@ -18,18 +18,6 @@ _database = None
 
 
 
-def show_cart_menu(update: Update, context: CallbackContext):
-    cart_items = get_cart_items(update.effective_chat.id)
-    products_in_cart = cart_items['data']
-    reply_markup = get_product_keyboard(products_in_cart)
-
-    cart_items_text = serialized_cart_items(cart_items)
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text=cart_items_text,
-                             reply_markup=reply_markup
-                             )
-
-
 def show_main_menu(update: Update, context: CallbackContext):
 
     products = get_product_catalogue()['data']
@@ -45,6 +33,20 @@ def show_main_menu(update: Update, context: CallbackContext):
 
     return "HANDLE_MENU"
 
+
+def show_cart_menu(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    cart_items = get_cart_items(chat_id)
+    products_in_cart = cart_items['data']
+    reply_markup = get_product_keyboard(products_in_cart)
+
+    cart_items_text = serialized_cart_items(cart_items)
+    context.bot.send_message(chat_id=chat_id,
+                             text=cart_items_text,
+                             reply_markup=reply_markup
+                             )
+
+
 def handle_menu(update: Update, context: CallbackContext):
 
     if update.callback_query.data == 'at_cart':
@@ -52,22 +54,20 @@ def handle_menu(update: Update, context: CallbackContext):
         return "HANDLE_CART"
 
     product_id = update.callback_query.data
-    product_dataset = get_product_by_id(product_id)['data']
-#   product_id = product['id']
-    message_id = update.callback_query['message']['message_id']
-
 
     keyboard = [[InlineKeyboardButton("1", callback_data=f'{product_id}::1'),
                  InlineKeyboardButton("5", callback_data=f'{product_id}::5'),
                  InlineKeyboardButton("10", callback_data=f'{product_id}::10')],
                 [InlineKeyboardButton("Назад", callback_data='back')]
                 ]
-
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
 
+    product_dataset = get_product_by_id(product_id)['data']
     reply_markup = InlineKeyboardMarkup(keyboard)
+    chat_id = update.effective_chat.id
+    message_id = update.callback_query['message']['message_id']
 
-    context.bot.send_photo(chat_id=update.effective_chat.id,
+    context.bot.send_photo(chat_id=chat_id,
                            photo=open('red_fish.jpg', 'rb'),
                            caption=f"""Предлагаем Вашему вниманию: {product_dataset["name"]}
                                   цена: {product_dataset["price"][0]["amount"]}{product_dataset["price"][0]['currency']}
@@ -76,7 +76,7 @@ def handle_menu(update: Update, context: CallbackContext):
                            reply_markup=reply_markup
                            )
 
-    context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
+    context.bot.delete_message(chat_id=chat_id, message_id=message_id)
 
     return "HANDLE_DESCRIPTION"
 
@@ -105,7 +105,7 @@ def handle_cart(update: Update, context: CallbackContext):
         show_main_menu(update, context)
         return "HANDLE_MENU"
 
-    cart_id = update.effective_chat.id
+    cart_id, = update.effective_chat.id
     product_in_cart_id = update.callback_query.data
     delete_item_from_cart(cart_id, product_in_cart_id)
 
@@ -132,13 +132,11 @@ def handle_users_reply(update: Update, context: CallbackContext):
     Если пользователь захочет начать общение с ботом заново, он также может воспользоваться этой командой.
     """
     db = get_database_connection()
-    #chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id
     if update.message:
         user_reply = update.message.text
-        chat_id = update.message.chat_id
     elif update.callback_query:
         user_reply = update.callback_query.data
-        chat_id = update.callback_query.message.chat_id
     else:
         return
     if user_reply == '/start':
