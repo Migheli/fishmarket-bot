@@ -1,6 +1,6 @@
 import requests
 import os
-
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 def get_auth_token():
     data = {
@@ -204,3 +204,32 @@ def download_img(img_url, path_to_save):
 
 
 download_img(get_file_url(red_fish_img_id), 'red_fish.jpg')
+
+
+def serialized_cart_items(cart_item):
+    products = cart_item['data']
+    products_data_sets = []
+    products_data_sets.append('Dear Customer! In your cart now:')
+    for product in products:
+        product_dataset = \
+            f""" \n {product['name']} \n {product['description']} \n {product['unit_price']['amount']} {product['value']['currency']} for a unit
+               In cart {product['quantity']} units for {product['value']['amount']} {product['value']['currency']}"""
+
+        products_data_sets.append(product_dataset)
+
+    products_data_sets.append(
+        f""" \n Total cost of Your cart: {cart_item['meta']['display_price']['with_tax']['amount']}""")
+    serialized_datasets = ' '.join(products_data_sets)
+    return serialized_datasets
+
+
+def get_product_keyboard(products_in_cart):
+    keyboard = []
+    for product_in_cart in products_in_cart:
+        delete_product_button = [InlineKeyboardButton(f"Удалить из корзины: {product_in_cart['name']}",
+                                                      callback_data=product_in_cart['id'])]
+        keyboard.append(delete_product_button)
+    keyboard.append([InlineKeyboardButton('В меню', callback_data='back')])
+    keyboard.append([InlineKeyboardButton('Оплатить', callback_data='at_payment')])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    return reply_markup

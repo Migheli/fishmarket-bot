@@ -6,20 +6,31 @@ redis==3.2.1
 import os
 import logging
 
-#import Inline as Inline
+
 import redis
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, CallbackContext
 from api_handlers import get_product_catalogue, get_product_by_id, add_product_to_cart, get_cart_items, \
-    create_cart_and_get_it_id, get_cart_id, delete_item_from_cart, create_a_customer
+    delete_item_from_cart, create_a_customer, serialized_cart_items, get_product_keyboard
 
 _database = None
 
 
+
+def show_cart_menu(update: Update, context: CallbackContext):
+    cart_items = get_cart_items(update.effective_chat.id)
+    products_in_cart = cart_items['data']
+    reply_markup = get_product_keyboard(products_in_cart)
+
+    cart_items_text = serialized_cart_items(cart_items)
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text=cart_items_text,
+                             reply_markup=reply_markup
+                             )
+
+
 def show_main_menu(update: Update, context: CallbackContext):
-
-
 
     products = get_product_catalogue()['data']
     keyboard = []
@@ -34,26 +45,21 @@ def show_main_menu(update: Update, context: CallbackContext):
 
     return "HANDLE_MENU"
 
-
-
 def handle_menu(update: Update, context: CallbackContext):
 
     if update.callback_query.data == 'at_cart':
-        print('сработало это условие!')
-        cart_id = update.effective_chat.id
-        cart_items = get_cart_items(cart_id)
-        print(f'результат вызова функции-гетера товаров {cart_items}')
+        show_cart_menu(update, context)
+        return "HANDLE_CART"
 
-    query = update.callback_query
-    print(query.data)
-    product = get_product_by_id(query.data)['data']
-    context.user_data['product_id'] = product['id']
+    product_id = update.callback_query.data
+    product_dataset = get_product_by_id(product_id)['data']
+#   product_id = product['id']
     message_id = update.callback_query['message']['message_id']
 
 
-    keyboard = [[InlineKeyboardButton("1", callback_data='1'),
-                 InlineKeyboardButton("5", callback_data='5'),
-                 InlineKeyboardButton("10", callback_data='10')],
+    keyboard = [[InlineKeyboardButton("1", callback_data=f'{product_id}::1'),
+                 InlineKeyboardButton("5", callback_data=f'{product_id}::5'),
+                 InlineKeyboardButton("10", callback_data=f'{product_id}::10')],
                 [InlineKeyboardButton("Назад", callback_data='back')]
                 ]
 
@@ -62,13 +68,13 @@ def handle_menu(update: Update, context: CallbackContext):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     context.bot.send_photo(chat_id=update.effective_chat.id,
-                   photo=open('red_fish.jpg', 'rb'),
-                   caption=f"""Предлагаем Вашему вниманию: {product["name"]}
-                                  цена: {product["price"][0]["amount"]}{product["price"][0]['currency']}
-                                  остатки на складе: {product["meta"]["stock"]["level"]}
-                                  описание товара: {product["description"]}""",
-                   reply_markup=reply_markup
-                   )
+                           photo=open('red_fish.jpg', 'rb'),
+                           caption=f"""Предлагаем Вашему вниманию: {product_dataset["name"]}
+                                  цена: {product_dataset["price"][0]["amount"]}{product_dataset["price"][0]['currency']}
+                                  остатки на складе: {product_dataset["meta"]["stock"]["level"]}
+                                  описание товара: {product_dataset["description"]}""",
+                           reply_markup=reply_markup
+                           )
 
     context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
 
@@ -76,57 +82,17 @@ def handle_menu(update: Update, context: CallbackContext):
 
 
 def handle_description(update: Update, context: CallbackContext):
-    #print(f'что прилетело в апдейте: {update.callback_query.data}')
+
     if update.callback_query.data == 'back':
         show_main_menu(update, context)
         return "HANDLE_MENU"
 
     if update.callback_query.data == 'at_cart':
-        print('сработало это условие!')
-        cart_id = update.effective_chat.id
-        cart_items = get_cart_items(cart_id)
-        print(f'результат вызова функции-гетера товаров {cart_items}')
-
-        def serialized_cart_items(cart_item):
-            products = cart_item['data']
-            products_data_sets = []
-            products_data_sets.append('Dear Customer! In your cart now:')
-            for product in products:
-                product_dataset = \
-                f""" \n {product['name']} \n {product['description']} \n {product['unit_price']['amount']} {product['value']['currency']} for a unit
-                In cart {product['quantity']} units for {product['value']['amount']} {product['value']['currency']}"""
-
-                products_data_sets.append(product_dataset)
-
-            products_data_sets.append(f""" \n Total cost of Your cart: {cart_item['meta']['display_price']['with_tax']['amount']}""")
-            serialized_cart_items = ' '.join(products_data_sets)
-            return serialized_cart_items
-
-        products_in_cart = cart_items['data']
-
-        keyboard = []
-        for product_in_cart in products_in_cart:
-            delete_product_button = [InlineKeyboardButton(f"Удалить из корзины: {product_in_cart['name']}",
-                                                          callback_data=product_in_cart['id'])]
-            keyboard.append(delete_product_button)
-        keyboard.append([InlineKeyboardButton('В меню', callback_data='back')])
-        keyboard.append([InlineKeyboardButton('Оплатить', callback_data='at_payment')])
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        cart_items_text = serialized_cart_items(cart_items)
-        print(f' Текст карт итем {cart_items_text}')
-        #print('Код сработал до отправки сообщения')
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                         text=cart_items_text,
-                         reply_markup = reply_markup
-                         )
+        show_cart_menu(update, context)
         return "HANDLE_CART"
 
-    cart_id = update.effective_chat.id
-    quantity = int(update.callback_query.data)
-    product_id = context.user_data['product_id']
-    print(product_id, cart_id, quantity)
-    add_product_to_cart(product_id, cart_id, quantity)
+    product_id, quantity = update.callback_query.data.split('::')
+    add_product_to_cart(product_id, update.effective_chat.id, quantity)
 
 
 def handle_cart(update: Update, context: CallbackContext):
@@ -145,7 +111,6 @@ def handle_cart(update: Update, context: CallbackContext):
 
 
 def handle_email(update: Update, context: CallbackContext):
-    #if is_email(update.message.text):
     customer_first_name = update.message.from_user.first_name
     customer_last_name = update.message.from_user.last_name
     customer_email = update.message.text
@@ -167,13 +132,13 @@ def handle_users_reply(update: Update, context: CallbackContext):
     Если пользователь захочет начать общение с ботом заново, он также может воспользоваться этой командой.
     """
     db = get_database_connection()
-    chat_id = update.effective_chat.id
+    #chat_id = update.effective_chat.id
     if update.message:
         user_reply = update.message.text
-        #chat_id = update.message.chat_id
+        chat_id = update.message.chat_id
     elif update.callback_query:
         user_reply = update.callback_query.data
-        #chat_id = update.callback_query.message.chat_id
+        chat_id = update.callback_query.message.chat_id
     else:
         return
     if user_reply == '/start':
