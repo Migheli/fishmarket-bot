@@ -45,14 +45,6 @@ def add_product_to_cart(moltin_token, product_id, cart_id, quantity):
     response.raise_for_status()
 
 
-def get_cart_id(moltin_token, cart_name):
-
-    headers = {'Authorization': f'Bearer {moltin_token}'}
-    response = requests.get(f'https://api.moltin.com/v2/carts/{cart_name}', headers=headers)
-    response.raise_for_status()
-    return response.json()['data']['links']['self']
-
-
 def get_cart_items(moltin_token, cart_id):
 
     headers = {'Authorization': f'Bearer {moltin_token}'}
@@ -80,19 +72,6 @@ def create_new_customer(moltin_token, first_name, last_name, email):
     }
     response = requests.post('https://api.moltin.com/v2/customers', headers=headers, json=json_data)
     response.raise_for_status()
-
-
-def upload_and_get_file_id(moltin_token, url):
-
-    headers = {'Authorization': f'Bearer {moltin_token}'}
-    files = {
-        'file': open(url, 'rb'),
-        'public': (None, 'true'),
-              }
-
-    response = requests.post('https://api.moltin.com/v2/files', headers=headers, files=files)
-    response.raise_for_status()
-    return response.json()['data']['id']
 
 
 def get_file_url(moltin_token, file_id):
