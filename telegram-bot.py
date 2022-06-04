@@ -12,15 +12,18 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, CallbackContext
 from api_handlers import get_product_catalogue, get_product_by_id, add_product_to_cart, get_cart_items, \
-    delete_item_from_cart, create_a_customer, serialized_cart_items, get_product_keyboard
+    delete_item_from_cart, create_new_customer, serialize_cart_item, get_product_keyboard, get_auth_token, get_file_url
+
+
+logger = logging.getLogger(__name__)
 
 _database = None
-
+_moltin_token = get_auth_token()
 
 
 def show_main_menu(update: Update, context: CallbackContext):
 
-    products = get_product_catalogue()['data']
+    products = get_product_catalogue(_moltin_token)['data']
     keyboard = []
     for product in products:
         product_button = [InlineKeyboardButton(product['name'], callback_data=product['id'])]
@@ -36,11 +39,11 @@ def show_main_menu(update: Update, context: CallbackContext):
 
 def show_cart_menu(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
-    cart_items = get_cart_items(chat_id)
+    cart_items = get_cart_items(_moltin_token, chat_id)
     products_in_cart = cart_items['data']
     reply_markup = get_product_keyboard(products_in_cart)
 
-    cart_items_text = serialized_cart_items(cart_items)
+    cart_items_text = serialize_cart_item(cart_items)
     context.bot.send_message(chat_id=chat_id,
                              text=cart_items_text,
                              reply_markup=reply_markup
@@ -62,13 +65,14 @@ def handle_menu(update: Update, context: CallbackContext):
                 ]
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
 
-    product_dataset = get_product_by_id(product_id)['data']
+    product_dataset = get_product_by_id(_moltin_token, product_id)['data']
     reply_markup = InlineKeyboardMarkup(keyboard)
     chat_id = update.effective_chat.id
     message_id = update.callback_query['message']['message_id']
-
+    product_main_img_id = product_dataset["relationships"]["main_image"]["data"]["id"]
+    product_main_img_url = get_file_url(_moltin_token, product_main_img_id)
     context.bot.send_photo(chat_id=chat_id,
-                           photo=open('red_fish.jpg', 'rb'),
+                           photo=product_main_img_url,
                            caption=f"""Предлагаем Вашему вниманию: {product_dataset["name"]}
                                   цена: {product_dataset["price"][0]["amount"]}{product_dataset["price"][0]['currency']}
                                   остатки на складе: {product_dataset["meta"]["stock"]["level"]}
@@ -92,7 +96,7 @@ def handle_description(update: Update, context: CallbackContext):
         return "HANDLE_CART"
 
     product_id, quantity = update.callback_query.data.split('::')
-    add_product_to_cart(product_id, update.effective_chat.id, quantity)
+    add_product_to_cart(_moltin_token, product_id, update.effective_chat.id, quantity)
 
 
 def handle_cart(update: Update, context: CallbackContext):
@@ -107,15 +111,14 @@ def handle_cart(update: Update, context: CallbackContext):
 
     cart_id = update.effective_chat.id
     product_in_cart_id = update.callback_query.data
-    delete_item_from_cart(cart_id, product_in_cart_id)
+    delete_item_from_cart(_moltin_token, cart_id, product_in_cart_id)
 
 
 def handle_email(update: Update, context: CallbackContext):
     customer_first_name = update.message.from_user.first_name
     customer_last_name = update.message.from_user.last_name
     customer_email = update.message.text
-
-    create_a_customer(customer_first_name, customer_last_name, customer_email)
+    create_new_customer(_moltin_token, customer_first_name, customer_last_name, customer_email)
 
 
 def handle_users_reply(update: Update, context: CallbackContext):
@@ -157,10 +160,11 @@ def handle_users_reply(update: Update, context: CallbackContext):
     # Этот фрагмент можно переписать.
     try:
         next_state = state_handler(update, context)
-        print('Следующее состояние:' + next_state)
+        logger.info(f'Текущее состояние:{next_state}')
         db.set(chat_id, next_state)
     except Exception as err:
-        print(err)
+        logger.error('Ошибка в хэндлере:')
+        logging.exception(err)
 
 
 def get_database_connection():
@@ -177,12 +181,23 @@ def get_database_connection():
 
 
 if __name__ == '__main__':
-    token = os.getenv('TELEGRAM_BOT_TOKEN')
-    updater = Updater(token, use_context=True)
-    logging.info('Бот в Telegram успешно запущен')
-    dispatcher = updater.dispatcher
-    dispatcher.add_handler(CallbackQueryHandler(handle_users_reply))
-    dispatcher.add_handler(MessageHandler(Filters.text, handle_users_reply))
-    dispatcher.add_handler(CommandHandler('start', handle_users_reply))
-    updater.start_polling()
+
+    logging.basicConfig(format='TG-bot: %(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        level=logging.INFO)
+
+    while True:
+        try:
+            token = os.getenv('TELEGRAM_BOT_TOKEN')
+            updater = Updater(token, use_context=True)
+            logger.info('Бот в Telegram успешно запущен')
+            dispatcher = updater.dispatcher
+            dispatcher.add_handler(CallbackQueryHandler(handle_users_reply))
+            dispatcher.add_handler(MessageHandler(Filters.text, handle_users_reply))
+            dispatcher.add_handler(CommandHandler('start', handle_users_reply))
+            updater.start_polling()
+            updater.idle()
+
+        except Exception as err:
+                logging.error('Телеграм бот упал с ошибкой:')
+                logging.exception(err)
 
