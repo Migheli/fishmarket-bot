@@ -82,19 +82,21 @@ def get_file_url(moltin_token, file_id):
     return response.json()['data']['link']['href']
 
 
-def serialize_cart_item(cart_item):
-    products = cart_item['data']
+def serialize_products_datasets(product_datasets):
+    products = product_datasets['data']
     products_data_sets = []
     products_data_sets.append('в Вашей корзине сейчас:')
     for product in products:
         product_dataset = \
-            f""" \n {product['name']} \n {product['description']} \n {product['unit_price']['amount']} 
-            {product['value']['currency']} за штуку
-            В корзине {product['quantity']} шт. на общую сумму {product['value']['amount']} {product['value']['currency']}"""
+            f"""\n{product['name']} \
+            \n{product['description']} \
+            \n{product['unit_price']['amount']} {product['value']['currency']} за штуку\
+            \nВ корзине {product['quantity']} шт. на общую сумму {product['value']['amount']}\
+            {product['value']['currency']}"""
 
         products_data_sets.append(product_dataset)
     products_data_sets.append(
-        f""" \n Стоимость всей корзины: {cart_item['meta']['display_price']['with_tax']['amount']}""")
+        f""" \nСтоимость всей корзины: {product_datasets['meta']['display_price']['with_tax']['amount']}""")
     serialized_datasets = ' '.join(products_data_sets)
     return serialized_datasets
 

@@ -1,6 +1,9 @@
+import logging
+import os
 import requests
 from api_handlers import get_auth_token, get_product_catalogue
-import os
+
+logger = logging.getLogger(__name__)
 
 MOLTIN_TOKEN = get_auth_token()
 
@@ -49,6 +52,10 @@ def set_main_image_by_product_name(url, product_name):
 
 
 if __name__ == '__main__':
-    product_name = os.getenv('PRODUCT_NAME')
-    img_url = os.getenv('IMG_URL')
-    set_main_image_by_product_name(img_url, product_name)
+    try:
+        product_name = os.getenv('PRODUCT_NAME')
+        img_url = os.getenv('IMG_URL')
+        set_main_image_by_product_name(img_url, product_name)
+    except Exception as err:
+        logging.error('Ошибка в привязке фото к товару:')
+        logging.exception(err)

@@ -10,7 +10,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, CallbackContext
 from api_handlers import get_product_catalogue, get_product_by_id, add_product_to_cart, get_cart_items, \
-    delete_item_from_cart, create_new_customer, serialize_cart_item, get_product_keyboard, get_auth_token, \
+    delete_item_from_cart, create_new_customer, serialize_products_datasets, get_product_keyboard, get_auth_token, \
     get_file_url
 
 
@@ -45,7 +45,7 @@ def show_cart_menu(update: Update, context: CallbackContext):
     products_in_cart = cart_items['data']
     reply_markup = get_product_keyboard(products_in_cart)
 
-    cart_items_text = serialize_cart_item(cart_items)
+    cart_items_text = serialize_products_datasets(cart_items)
     context.bot.send_message(chat_id=chat_id,
                              text=cart_items_text,
                              reply_markup=reply_markup
@@ -90,12 +90,14 @@ def handle_menu(update: Update, context: CallbackContext):
 
 
 def handle_description(update: Update, context: CallbackContext):
-
+    message_id = update.callback_query['message']['message_id']
     if update.callback_query.data == 'back':
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         show_main_menu(update, context)
         return 'HANDLE_MENU'
 
     if update.callback_query.data == 'at_cart':
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         show_cart_menu(update, context)
         return 'HANDLE_CART'
 
@@ -104,13 +106,15 @@ def handle_description(update: Update, context: CallbackContext):
 
 
 def handle_cart(update: Update, context: CallbackContext):
-
+    message_id = update.callback_query['message']['message_id']
     if update.callback_query.data == 'at_payment':
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text='Пожалуйста, введите Ваш адрес электронной почты:')
         return 'WAITING_EMAIL'
 
     if update.callback_query.data == 'back':
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         show_main_menu(update, context)
         return 'HANDLE_MENU'
 
