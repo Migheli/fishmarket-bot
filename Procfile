@@ -1,1 +1,1 @@
-bot-tg: python3 telegram_bot.py
+python3 telegram_bot.py
