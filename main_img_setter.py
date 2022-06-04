@@ -19,23 +19,6 @@ def upload_img_and_get_id(moltin_token, url):
     return response.json()['data']['id']
 
 
-def get_uploaded_file_url(moltin_token, file_id):
-    headers = {'Authorization': f'Bearer {moltin_token}'}
-
-    response = requests.get(f'https://api.moltin.com/v2/files/{file_id}',
-                            headers=headers)
-    response.raise_for_status()
-    img_file_url = response.json()['data']['link']['href']
-    return img_file_url
-
-
-def download_img(img_url, path_to_save):
-    response = requests.get(img_url)
-    response.raise_for_status()
-    with open(path_to_save, 'wb') as file:
-        file.write(response.content)
-
-
 def get_product_id_by_name(product_name):
     products = get_product_catalogue(MOLTIN_TOKEN)['data']
     for product in products:

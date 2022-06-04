@@ -161,7 +161,8 @@ def handle_users_reply(update: Update, context: CallbackContext):
     }
     state_handler = states_functions[user_state]
     next_state = state_handler(update, context)
-    db.set(chat_id, next_state)
+    if next_state:
+        db.set(chat_id, next_state)
 
 
 def get_database_connection():
