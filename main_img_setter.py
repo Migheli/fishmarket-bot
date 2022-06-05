@@ -51,7 +51,7 @@ def set_main_image_by_product_name(url, product_name):
     set_main_image_to_product(MOLTIN_TOKEN, product_id, file_id)
 
 
-if __name__ == '__main__':
+def main():
     try:
         product_name = os.getenv('PRODUCT_NAME')
         img_url = os.getenv('IMG_URL')
@@ -59,3 +59,7 @@ if __name__ == '__main__':
     except Exception as err:
         logging.error('Ошибка в привязке фото к товару:')
         logging.exception(err)
+
+
+if __name__ == '__main__':
+    main()
