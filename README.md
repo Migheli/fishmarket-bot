@@ -85,12 +85,12 @@ $python telegram_bot.py
 ### Примеры работы ботов
 Пример работы бота:
 
-<img src="https://i.ibb.co/WHWNkwj/Tg-bot.gif">
+<img src="https://i.ibb.co/TtPV15j/fishmarket-bot.gif">
 
 #### Ссылка на задеплоенный тестовый бот:
 
 Телеграм: 
-https://t.me/dvmn_quiz_telebot
+https://t.me/fish_market_dvmn_bot
 
 ### Деплоим проект с помощью Heroku
 Необязательный шаг. Бот может работать и непосредственно на Вашем сервере (при наличии такового). 
