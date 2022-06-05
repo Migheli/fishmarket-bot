@@ -199,4 +199,3 @@ if __name__ == '__main__':
         except Exception as err:
             logging.error('Телеграм бот упал с ошибкой:')
             logging.exception(err)
-
