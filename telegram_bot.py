@@ -9,17 +9,16 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, C
 from api_handlers import get_product_catalogue, get_product_by_id, add_product_to_cart, get_cart_items, \
     delete_item_from_cart, create_new_customer, serialize_products_datasets, get_product_keyboard, get_auth_token, \
     get_file_url
-
+from functools import partial
 
 logger = logging.getLogger(__name__)
 
 _database = None
-MOLTIN_TOKEN = get_auth_token()
 
 
-def show_main_menu(update: Update, context: CallbackContext):
+def show_main_menu(update: Update, context: CallbackContext, moltin_token):
 
-    products = get_product_catalogue(MOLTIN_TOKEN)['data']
+    products = get_product_catalogue(moltin_token)['data']
     keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in products]
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -30,9 +29,9 @@ def show_main_menu(update: Update, context: CallbackContext):
     return 'HANDLE_MENU'
 
 
-def show_cart_menu(update: Update, context: CallbackContext):
+def show_cart_menu(update: Update, context: CallbackContext, moltin_token):
     chat_id = update.effective_chat.id
-    cart_items = get_cart_items(MOLTIN_TOKEN, chat_id)
+    cart_items = get_cart_items(moltin_token, chat_id)
     products_in_cart = cart_items['data']
     reply_markup = get_product_keyboard(products_in_cart)
 
@@ -43,10 +42,10 @@ def show_cart_menu(update: Update, context: CallbackContext):
                              )
 
 
-def handle_menu(update: Update, context: CallbackContext):
+def handle_menu(update: Update, context: CallbackContext, moltin_token):
 
     if update.callback_query.data == 'at_cart':
-        show_cart_menu(update, context)
+        show_cart_menu(update, context, moltin_token)
         return 'HANDLE_CART'
 
     product_id = update.callback_query.data
@@ -58,12 +57,12 @@ def handle_menu(update: Update, context: CallbackContext):
                 ]
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
 
-    product_dataset = get_product_by_id(MOLTIN_TOKEN, product_id)['data']
+    product_dataset = get_product_by_id(moltin_token, product_id)['data']
     reply_markup = InlineKeyboardMarkup(keyboard)
     chat_id = update.effective_chat.id
     message_id = update.callback_query['message']['message_id']
     product_main_img_id = product_dataset['relationships']['main_image']['data']['id']
-    product_main_img_url = get_file_url(MOLTIN_TOKEN, product_main_img_id)
+    product_main_img_url = get_file_url(moltin_token, product_main_img_id)
     context.bot.send_photo(chat_id=chat_id,
                            photo=product_main_img_url,
                            caption=f"""
@@ -80,23 +79,23 @@ def handle_menu(update: Update, context: CallbackContext):
     return 'HANDLE_DESCRIPTION'
 
 
-def handle_description(update: Update, context: CallbackContext):
+def handle_description(update: Update, context: CallbackContext, moltin_token):
     message_id = update.callback_query['message']['message_id']
     if update.callback_query.data == 'back':
-        show_main_menu(update, context)
+        show_main_menu(update, context, moltin_token)
         context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         return 'HANDLE_MENU'
 
     if update.callback_query.data == 'at_cart':
-        show_cart_menu(update, context)
+        show_cart_menu(update, context, moltin_token)
         context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         return 'HANDLE_CART'
 
     product_id, quantity = update.callback_query.data.split('::')
-    add_product_to_cart(MOLTIN_TOKEN, product_id, update.effective_chat.id, quantity)
+    add_product_to_cart(moltin_token, product_id, update.effective_chat.id, quantity)
 
 
-def handle_cart(update: Update, context: CallbackContext):
+def handle_cart(update: Update, context: CallbackContext, moltin_token):
     message_id = update.callback_query['message']['message_id']
     if update.callback_query.data == 'at_payment':
         context.bot.send_message(chat_id=update.effective_chat.id,
@@ -105,23 +104,23 @@ def handle_cart(update: Update, context: CallbackContext):
         return 'WAITING_EMAIL'
 
     if update.callback_query.data == 'back':
-        show_main_menu(update, context)
+        show_main_menu(update, context, moltin_token)
         context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         return 'HANDLE_MENU'
 
     cart_id = update.effective_chat.id
     product_in_cart_id = update.callback_query.data
-    delete_item_from_cart(MOLTIN_TOKEN, cart_id, product_in_cart_id)
+    delete_item_from_cart(moltin_token, cart_id, product_in_cart_id)
 
 
-def handle_email(update: Update, context: CallbackContext):
+def handle_email(update: Update, context: CallbackContext, moltin_token):
     customer_first_name = update.message.from_user.first_name
     customer_last_name = update.message.from_user.last_name
     customer_email = update.message.text
-    create_new_customer(MOLTIN_TOKEN, customer_first_name, customer_last_name, customer_email)
+    create_new_customer(moltin_token, customer_first_name, customer_last_name, customer_email)
 
 
-def handle_users_reply(update: Update, context: CallbackContext):
+def handle_users_reply(update: Update, context: CallbackContext, moltin_token):
     """
     Функция, которая запускается при любом сообщении от пользователя и решает как его обработать.
     Эта функция запускается в ответ на эти действия пользователя:
@@ -155,7 +154,7 @@ def handle_users_reply(update: Update, context: CallbackContext):
         'WAITING_EMAIL': handle_email,
     }
     state_handler = states_functions[user_state]
-    next_state = state_handler(update, context)
+    next_state = state_handler(update, context, moltin_token)
     if next_state:
         db.set(chat_id, next_state)
 
@@ -180,13 +179,15 @@ def main():
 
     while True:
         try:
+            moltin_token = get_auth_token()
+            handle_users_reply_token_prefilled = partial(handle_users_reply, moltin_token=moltin_token)
             token = os.getenv('TELEGRAM_BOT_TOKEN')
             updater = Updater(token, use_context=True)
             logger.info('Бот в Telegram успешно запущен')
             dispatcher = updater.dispatcher
-            dispatcher.add_handler(CallbackQueryHandler(handle_users_reply))
-            dispatcher.add_handler(MessageHandler(Filters.text, handle_users_reply))
-            dispatcher.add_handler(CommandHandler('start', handle_users_reply))
+            dispatcher.add_handler(CallbackQueryHandler(handle_users_reply_token_prefilled))
+            dispatcher.add_handler(MessageHandler(Filters.text, handle_users_reply_token_prefilled))
+            dispatcher.add_handler(CommandHandler('start', handle_users_reply_token_prefilled))
             updater.start_polling()
             updater.idle()
 
@@ -195,6 +196,5 @@ def main():
             logging.exception(err)
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  
     main()
-
