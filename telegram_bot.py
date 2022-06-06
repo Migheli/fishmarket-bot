@@ -20,14 +20,8 @@ MOLTIN_TOKEN = get_auth_token()
 def show_main_menu(update: Update, context: CallbackContext):
 
     products = get_product_catalogue(MOLTIN_TOKEN)['data']
-    keyboard = []
-    for product in products:
-        product_button = [InlineKeyboardButton(product['name'],
-                                               callback_data=product['id'])]
-        keyboard.append(product_button)
-
+    keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in products]
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
-
     reply_markup = InlineKeyboardMarkup(keyboard)
     context.bot.send_message(chat_id=update.effective_chat.id,
                              text='Пожалуйста, выберите товар:',
@@ -73,10 +67,10 @@ def handle_menu(update: Update, context: CallbackContext):
     context.bot.send_photo(chat_id=chat_id,
                            photo=product_main_img_url,
                            caption=f"""
-                           Предлагаем Вашему вниманию: {product_dataset['name']} \
-                           \nЦена: {product_dataset['price'][0]['amount']}{product_dataset['price'][0]['currency']} \
-                           \nОстатки на складе: {product_dataset['meta']['stock']['level']} \
-                           \nОписание товара: {product_dataset['description']}
+                           Предлагаем Вашему вниманию: {product_dataset['name']}
+                           Цена: {product_dataset['price'][0]['amount']}{product_dataset['price'][0]['currency']}
+                           Остатки на складе: {product_dataset['meta']['stock']['level']}
+                           Описание товара: {product_dataset['description']}
                            """,
                            reply_markup=reply_markup
                            )
@@ -89,13 +83,13 @@ def handle_menu(update: Update, context: CallbackContext):
 def handle_description(update: Update, context: CallbackContext):
     message_id = update.callback_query['message']['message_id']
     if update.callback_query.data == 'back':
-        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         show_main_menu(update, context)
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         return 'HANDLE_MENU'
 
     if update.callback_query.data == 'at_cart':
-        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         show_cart_menu(update, context)
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         return 'HANDLE_CART'
 
     product_id, quantity = update.callback_query.data.split('::')
@@ -105,14 +99,14 @@ def handle_description(update: Update, context: CallbackContext):
 def handle_cart(update: Update, context: CallbackContext):
     message_id = update.callback_query['message']['message_id']
     if update.callback_query.data == 'at_payment':
-        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text='Пожалуйста, введите Ваш адрес электронной почты:')
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         return 'WAITING_EMAIL'
 
     if update.callback_query.data == 'back':
-        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         show_main_menu(update, context)
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         return 'HANDLE_MENU'
 
     cart_id = update.effective_chat.id
