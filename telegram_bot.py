@@ -173,7 +173,7 @@ def get_database_connection():
     return _database
 
 
-if __name__ == '__main__':
+def main():
 
     logging.basicConfig(format='TG-bot: %(asctime)s - %(name)s - %(levelname)s - %(message)s',
                         level=logging.INFO)
@@ -193,3 +193,8 @@ if __name__ == '__main__':
         except Exception as err:
             logging.error('Телеграм бот упал с ошибкой:')
             logging.exception(err)
+
+
+if __name__ == '__main__':
+    main()
+
