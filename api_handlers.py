@@ -102,11 +102,8 @@ def serialize_products_datasets(product_datasets):
 
 
 def get_product_keyboard(products_in_cart):
-    keyboard = []
-    for product_in_cart in products_in_cart:
-        delete_product_button = [InlineKeyboardButton(f"Удалить из корзины: {product_in_cart['name']}",
-                                                      callback_data=product_in_cart['id'])]
-        keyboard.append(delete_product_button)
+
+    keyboard = [[InlineKeyboardButton(f"Удалить из корзины: {product['name']}", callback_data=product['id'])] for product in products_in_cart]
     keyboard.append([InlineKeyboardButton('В меню', callback_data='back')])
     keyboard.append([InlineKeyboardButton('Оплатить', callback_data='at_payment')])
     reply_markup = InlineKeyboardMarkup(keyboard)
