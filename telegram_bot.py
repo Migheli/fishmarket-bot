@@ -1,7 +1,7 @@
 import os
 import logging
-
-
+import requests
+from functools import partial
 import redis
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Filters, Updater
@@ -9,7 +9,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, C
 from api_handlers import get_product_catalogue, get_product_by_id, add_product_to_cart, get_cart_items, \
     delete_item_from_cart, create_new_customer, serialize_products_datasets, get_product_keyboard, get_auth_token, \
     get_file_url
-from functools import partial
+
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +133,7 @@ def handle_users_reply(update: Update, context: CallbackContext, moltin_token):
     поэтому по этой фразе выставляется стартовое состояние.
     Если пользователь захочет начать общение с ботом заново, он также может воспользоваться этой командой.
     """
+    moltin_token = check_token_status(moltin_token)
     db = get_database_connection()
     chat_id = update.effective_chat.id
     if update.message:
@@ -157,6 +158,17 @@ def handle_users_reply(update: Update, context: CallbackContext, moltin_token):
     next_state = state_handler(update, context, moltin_token)
     if next_state:
         db.set(chat_id, next_state)
+
+
+def check_token_status(moltin_token):
+    """
+    Проверяет работоспособность токена: если имеются ошибки авторизации, создаёт новый токен.
+    """
+    headers = {'Authorization': f'Bearer {moltin_token}'}
+    response = requests.get('https://api.moltin.com/v2/products', headers=headers)
+    if response.status_code == 401:
+        moltin_token = get_auth_token()
+    return moltin_token
 
 
 def get_database_connection():
