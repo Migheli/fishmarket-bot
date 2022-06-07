@@ -9,6 +9,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, C
 from api_handlers import get_product_catalogue, get_product_by_id, add_product_to_cart, get_cart_items, \
     delete_item_from_cart, create_new_customer, serialize_products_datasets, get_product_keyboard, get_auth_token, \
     get_file_url
+from textwrap import dedent
 
 
 logger = logging.getLogger(__name__)
@@ -65,12 +66,12 @@ def handle_menu(update: Update, context: CallbackContext, moltin_token):
     product_main_img_url = get_file_url(moltin_token, product_main_img_id)
     context.bot.send_photo(chat_id=chat_id,
                            photo=product_main_img_url,
-                           caption=f"""
+                           caption=dedent(f"""\
                            Предлагаем Вашему вниманию: {product_dataset['name']}
                            Цена: {product_dataset['price'][0]['amount']}{product_dataset['price'][0]['currency']}
                            Остатки на складе: {product_dataset['meta']['stock']['level']}
                            Описание товара: {product_dataset['description']}
-                           """,
+                           """),
                            reply_markup=reply_markup
                            )
 
@@ -162,10 +163,10 @@ def handle_users_reply(update: Update, context: CallbackContext, moltin_token):
 
 def check_token_status(moltin_token):
     """
-    Проверяет работоспособность токена: если имеются ошибки авторизации, создаёт новый токен.
+    Проверяет работоспособность токена: если код ответа указывает на ошибку авторизации (401), обновляет токен.
     """
     headers = {'Authorization': f'Bearer {moltin_token}'}
-    response = requests.get('https://api.moltin.com/v2/products', headers=headers)
+    response = requests.get('https://api.moltin.com/v2/', headers=headers)
     if response.status_code == 401:
         moltin_token = get_auth_token()
     return moltin_token

@@ -1,6 +1,7 @@
 import requests
 import os
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from textwrap import dedent
 
 
 def get_auth_token():
@@ -87,14 +88,14 @@ def serialize_products_datasets(product_datasets):
     products_data_sets = []
     products_data_sets.append('в Вашей корзине сейчас:')
     for product in products:
-        product_dataset = \
-            f"""\n{product['name']} \
-            \n{product['description']} \
-            \n{product['unit_price']['amount']} {product['value']['currency']} за штуку\
-            \nВ корзине {product['quantity']} шт. на общую сумму {product['value']['amount']}\
-            {product['value']['currency']}"""
-
-        products_data_sets.append(product_dataset)
+        product_dataset = f"""\
+        {product['name']}
+        {product['description']}
+        {product['unit_price']['amount']} {product['value']['currency']} за штуку
+        В корзине {product['quantity']} шт. на общую сумму {product['value']['amount']}
+        {product['value']['currency']}
+        """
+        products_data_sets.append(dedent(product_dataset))
     products_data_sets.append(
         f""" \nСтоимость всей корзины: {product_datasets['meta']['display_price']['with_tax']['amount']}""")
     serialized_datasets = ' '.join(products_data_sets)
