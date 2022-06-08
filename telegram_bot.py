@@ -160,13 +160,13 @@ def handle_users_reply(update: Update, context: CallbackContext, moltin_token_da
         db.set(chat_id, next_state)
 
 
-def check_token_status(moltin_token):
+def check_token_status(moltin_token_dataset):
     """
     Проверяет актуальность токена по времени его действия и, в случае необходимости, обновляет его.
     """
-    if int(time.time()) >= moltin_token['expires']:
-        moltin_token = get_token_dataset()
-    return moltin_token
+    if int(time.time()) >= moltin_token_dataset['expires']:
+        moltin_token_dataset = get_token_dataset()
+    return moltin_token_dataset
 
 
 def get_database_connection():
