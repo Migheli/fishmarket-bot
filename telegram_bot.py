@@ -1,16 +1,15 @@
-import os
 import logging
-import requests
+import os
+import time
 from functools import partial
 import redis
+from textwrap import dedent
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, CallbackContext
 from api_handlers import get_product_catalogue, get_product_by_id, add_product_to_cart, get_cart_items, \
-    delete_item_from_cart, create_new_customer, serialize_products_datasets, get_product_keyboard, get_auth_token, \
+    delete_item_from_cart, create_new_customer, serialize_products_datasets, get_product_keyboard, get_token_dataset, \
     get_file_url
-from textwrap import dedent
-
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +120,7 @@ def handle_email(update: Update, context: CallbackContext, moltin_token):
     create_new_customer(moltin_token, customer_first_name, customer_last_name, customer_email)
 
 
-def handle_users_reply(update: Update, context: CallbackContext, moltin_token):
+def handle_users_reply(update: Update, context: CallbackContext, moltin_token_dataset):
     """
     Функция, которая запускается при любом сообщении от пользователя и решает как его обработать.
     Эта функция запускается в ответ на эти действия пользователя:
@@ -134,7 +133,7 @@ def handle_users_reply(update: Update, context: CallbackContext, moltin_token):
     поэтому по этой фразе выставляется стартовое состояние.
     Если пользователь захочет начать общение с ботом заново, он также может воспользоваться этой командой.
     """
-    moltin_token = check_token_status(moltin_token)
+    moltin_token_dataset = check_token_status(moltin_token_dataset)
     db = get_database_connection()
     chat_id = update.effective_chat.id
     if update.message:
@@ -156,19 +155,17 @@ def handle_users_reply(update: Update, context: CallbackContext, moltin_token):
         'WAITING_EMAIL': handle_email,
     }
     state_handler = states_functions[user_state]
-    next_state = state_handler(update, context, moltin_token)
+    next_state = state_handler(update, context, moltin_token_dataset)
     if next_state:
         db.set(chat_id, next_state)
 
 
 def check_token_status(moltin_token):
     """
-    Проверяет работоспособность токена: если код ответа указывает на ошибку авторизации (401), обновляет токен.
+    Проверяет актуальность токена по времени его действия и, в случае необходимости, обновляет его.
     """
-    headers = {'Authorization': f'Bearer {moltin_token}'}
-    response = requests.get('https://api.moltin.com/v2/', headers=headers)
-    if response.status_code == 401:
-        moltin_token = get_auth_token()
+    if int(time.time()) >= moltin_token['expires']:
+        moltin_token = get_token_dataset()
     return moltin_token
 
 
@@ -192,8 +189,8 @@ def main():
 
     while True:
         try:
-            moltin_token = get_auth_token()
-            handle_users_reply_token_prefilled = partial(handle_users_reply, moltin_token=moltin_token)
+            moltin_token_dataset = get_token_dataset()
+            handle_users_reply_token_prefilled = partial(handle_users_reply, moltin_token_dataset=moltin_token_dataset)
             token = os.getenv('TELEGRAM_BOT_TOKEN')
             updater = Updater(token, use_context=True)
             logger.info('Бот в Telegram успешно запущен')

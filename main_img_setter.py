@@ -1,13 +1,13 @@
 import logging
 import os
 import requests
-from api_handlers import get_auth_token, get_product_catalogue
+from api_handlers import get_token_dataset, get_product_catalogue
 
 logger = logging.getLogger(__name__)
 
 
-def upload_img_and_get_id(moltin_token, url):
-    headers = {'Authorization': f'Bearer {moltin_token}'}
+def upload_img_and_get_id(moltin_token_dataset, url):
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
 
     files = {
         'file_location': (None, url),
@@ -26,8 +26,8 @@ def get_product_id_by_name(products, product_name):
             return product['id']
 
 
-def set_main_image_to_product(moltin_token, product_id, file_id):
-    headers = {'Authorization': f'Bearer {moltin_token}'}
+def set_main_image_to_product(moltin_token_dataset, product_id, file_id):
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
 
     json_data = {
         'data': {
@@ -44,13 +44,13 @@ def set_main_image_to_product(moltin_token, product_id, file_id):
 
 def main():
     try:
-        moltin_token = get_auth_token()
+        moltin_token_dataset = get_token_dataset()
         product_name = os.getenv('PRODUCT_NAME')
         img_url = os.getenv('IMG_URL')
-        file_id = upload_img_and_get_id(moltin_token, img_url)
-        products = get_product_catalogue(moltin_token)['data']
+        file_id = upload_img_and_get_id(moltin_token_dataset, img_url)
+        products = get_product_catalogue(moltin_token_dataset)['data']
         product_id = get_product_id_by_name(products, product_name)
-        set_main_image_to_product(moltin_token, product_id, file_id)
+        set_main_image_to_product(moltin_token_dataset, product_id, file_id)
     except Exception as err:
         logging.error('Ошибка в привязке фото к товару:')
         logging.exception(err)
