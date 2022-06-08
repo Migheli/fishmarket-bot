@@ -15,6 +15,7 @@ def get_token_dataset():
     response.raise_for_status()
     return response.json()
 
+
 def get_product_catalogue(moltin_token_dataset):
 
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
