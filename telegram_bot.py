@@ -2,6 +2,9 @@ import logging
 import os
 import time
 from functools import partial
+
+#import START as START
+import products as products
 import redis
 from textwrap import dedent
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -16,6 +19,60 @@ logger = logging.getLogger(__name__)
 _database = None
 
 
+def chunk_using_generators(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+
+def serialize_products_catalogue(products):
+    products_datasets = list(chunk_using_generators(products, 1))
+    return products_datasets
+
+
+def display_page_keyboard(products_datasets, index_of_page):
+    index_of_page = int(index_of_page)
+    target_product_dataset = products_datasets[index_of_page]
+    keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in
+                target_product_dataset]
+
+    back_products_button = InlineKeyboardButton('Предыдущие товары', callback_data=f"no_previous_products_page")
+    next_products_button = InlineKeyboardButton('Следующие товары', callback_data=f"no_next_products_page")
+
+    if index_of_page > 0:
+        back_products_button = InlineKeyboardButton('Предыдущие товары', callback_data=f"show_products_page::{index_of_page - 1}")
+    if index_of_page + 1 < len(products_datasets):
+        next_products_button = InlineKeyboardButton('Следующие товары', callback_data=f"show_products_page::{index_of_page + 1}")
+
+    navigation_buttons = [back_products_button, next_products_button]
+    keyboard.append(navigation_buttons)
+
+    #keyboard.append(back_products_button)
+    #keyboard.append(next_products_button)
+
+    keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
+
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+
+def show_main_menu(update: Update, context: CallbackContext, moltin_token, index_of_page=0):
+    products = get_product_catalogue(moltin_token)['data']
+    keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in products]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if len(products) > 1:
+        products_datasets = serialize_products_catalogue(products)
+        reply_markup= display_page_keyboard(products_datasets, index_of_page)
+
+    keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text='Пожалуйста, выберите товар:',
+                                 reply_markup=reply_markup)
+
+    return 'HANDLE_MENU'
+
+'''
 def show_main_menu(update: Update, context: CallbackContext, moltin_token):
 
     products = get_product_catalogue(moltin_token)['data']
@@ -27,7 +84,7 @@ def show_main_menu(update: Update, context: CallbackContext, moltin_token):
                              reply_markup=reply_markup)
 
     return 'HANDLE_MENU'
-
+'''
 
 def show_cart_menu(update: Update, context: CallbackContext, moltin_token):
     chat_id = update.effective_chat.id
@@ -43,6 +100,23 @@ def show_cart_menu(update: Update, context: CallbackContext, moltin_token):
 
 
 def handle_menu(update: Update, context: CallbackContext, moltin_token):
+    if update.callback_query.data == 'no_previous_products_page':
+        update.callback_query.answer('Это первая страница', show_alert=True)
+    if update.callback_query.data == 'no_next_products_page':
+        update.callback_query.answer('Это последняя страница', show_alert=True)
+
+    if 'show_products_page' in update.callback_query.data:
+        text, index_of_page = update.callback_query.data.split('::')
+
+        products = get_product_catalogue(moltin_token)['data']
+        serialized_products_datasets = serialize_products_catalogue(products)
+
+        reply_markup = display_page_keyboard(serialized_products_datasets, index_of_page)
+
+        context.bot.edit_message_reply_markup(chat_id=update.effective_chat.id,
+                                              message_id = update.callback_query['message']['message_id'],
+                                              reply_markup=reply_markup)
+
 
     if update.callback_query.data == 'at_cart':
         show_cart_menu(update, context, moltin_token)
