@@ -3,8 +3,6 @@ import os
 import time
 from functools import partial
 
-#import START as START
-import products as products
 import redis
 from textwrap import dedent
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, constants
@@ -67,19 +65,6 @@ def show_main_menu(update: Update, context: CallbackContext, moltin_token, index
                                  reply_markup=reply_markup)
     return 'HANDLE_MENU'
 
-'''
-def show_main_menu(update: Update, context: CallbackContext, moltin_token):
-
-    products = get_product_catalogue(moltin_token)['data']
-    keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in products]
-    keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text='Пожалуйста, выберите товар:',
-                             reply_markup=reply_markup)
-
-    return 'HANDLE_MENU'
-'''
 
 def show_cart_menu(update: Update, context: CallbackContext, moltin_token):
     chat_id = update.effective_chat.id
@@ -171,8 +156,9 @@ def handle_description(update: Update, context: CallbackContext, moltin_token):
         return 'HANDLE_CART'
 
     product_id, quantity = update.callback_query.data.split('::')
+    product_name = get_product_by_id(moltin_token, product_id)['data']['name']
     add_product_to_cart(moltin_token, product_id, update.effective_chat.id, quantity)
-    update.callback_query.answer('Товар добавлен в корзину', show_alert=True)
+    update.callback_query.answer(f'Товар {product_name} добавлен в корзину', show_alert=True)
 
 
 def handle_cart(update: Update, context: CallbackContext, moltin_token):
