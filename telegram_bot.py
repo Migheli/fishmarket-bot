@@ -62,10 +62,9 @@ def show_main_menu(update: Update, context: CallbackContext, moltin_token, index
 
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
     context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text='*Пожалуйста*, выберите товар:',
+                                 text='*Пожалуйста, выберите товар:*',
                                  parse_mode=constants.PARSEMODE_MARKDOWN_V2,
                                  reply_markup=reply_markup)
-
     return 'HANDLE_MENU'
 
 '''
@@ -87,7 +86,7 @@ def show_cart_menu(update: Update, context: CallbackContext, moltin_token):
     cart_items = get_cart_items(moltin_token, chat_id)
     products_in_cart = cart_items['data']
     reply_markup = get_product_keyboard(products_in_cart)
-
+    print(products_in_cart)
     cart_items_text = serialize_products_datasets(cart_items)
     context.bot.send_message(chat_id=chat_id,
                              text=cart_items_text,
@@ -175,6 +174,7 @@ def handle_description(update: Update, context: CallbackContext, moltin_token):
     add_product_to_cart(moltin_token, product_id, update.effective_chat.id, quantity)
     update.callback_query.answer('Товар добавлен в корзину', show_alert=True)
 
+
 def handle_cart(update: Update, context: CallbackContext, moltin_token):
     message_id = update.callback_query['message']['message_id']
     if update.callback_query.data == 'at_payment':
@@ -189,9 +189,9 @@ def handle_cart(update: Update, context: CallbackContext, moltin_token):
         return 'HANDLE_MENU'
 
     cart_id = update.effective_chat.id
-    product_in_cart_id = update.callback_query.data
-    delete_item_from_cart(moltin_token, cart_id, product_in_cart_id)
-
+    cart_item_id, product_in_cart_name = update.callback_query.data.split('::')
+    delete_item_from_cart(moltin_token, cart_id, cart_item_id)
+    update.callback_query.answer(f'Товар {product_in_cart_name} удален из корзины', show_alert=True)
 
 def handle_email(update: Update, context: CallbackContext, moltin_token):
     customer_first_name = update.message.from_user.first_name
