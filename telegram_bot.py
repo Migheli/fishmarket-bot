@@ -7,36 +7,38 @@ from functools import partial
 import products as products
 import redis
 from textwrap import dedent
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, constants
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, CallbackContext
 from api_handlers import get_product_catalogue, get_product_by_id, add_product_to_cart, get_cart_items, \
     delete_item_from_cart, create_new_customer, serialize_products_datasets, get_product_keyboard, get_token_dataset, \
     get_file_url
+from validate_email import validate_email
 
 logger = logging.getLogger(__name__)
 
 _database = None
+MAX_PRODUCTS_PER_PAGE = 1
 
 
-def chunk_using_generators(lst, n):
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+def get_products_datasets(products, max_products_per_page):
+    for product in range(0, len(products), max_products_per_page):
+        yield products[product:product + max_products_per_page]
 
 
-def serialize_products_catalogue(products):
-    products_datasets = list(chunk_using_generators(products, 1))
+def serialize_products_catalogue(products, max_products_per_page):
+    products_datasets = list(get_products_datasets(products, max_products_per_page))
     return products_datasets
 
 
-def display_page_keyboard(products_datasets, index_of_page):
+def get_multipage_keyboard(products_datasets, index_of_page):
     index_of_page = int(index_of_page)
     target_product_dataset = products_datasets[index_of_page]
     keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in
                 target_product_dataset]
 
-    back_products_button = InlineKeyboardButton('Предыдущие товары', callback_data=f"no_previous_products_page")
-    next_products_button = InlineKeyboardButton('Следующие товары', callback_data=f"no_next_products_page")
+    back_products_button = InlineKeyboardButton('Предыдущие товары', callback_data='no_previous_products_page')
+    next_products_button = InlineKeyboardButton('Следующие товары', callback_data='no_next_products_page')
 
     if index_of_page > 0:
         back_products_button = InlineKeyboardButton('Предыдущие товары', callback_data=f"show_products_page::{index_of_page - 1}")
@@ -45,15 +47,8 @@ def display_page_keyboard(products_datasets, index_of_page):
 
     navigation_buttons = [back_products_button, next_products_button]
     keyboard.append(navigation_buttons)
-
-    #keyboard.append(back_products_button)
-    #keyboard.append(next_products_button)
-
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
-
-
     return InlineKeyboardMarkup(keyboard)
-
 
 
 def show_main_menu(update: Update, context: CallbackContext, moltin_token, index_of_page=0):
@@ -61,13 +56,14 @@ def show_main_menu(update: Update, context: CallbackContext, moltin_token, index
     keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in products]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if len(products) > 1:
-        products_datasets = serialize_products_catalogue(products)
-        reply_markup= display_page_keyboard(products_datasets, index_of_page)
+    if len(products) > MAX_PRODUCTS_PER_PAGE:
+        products_datasets = serialize_products_catalogue(products, MAX_PRODUCTS_PER_PAGE)
+        reply_markup= get_multipage_keyboard(products_datasets, index_of_page)
 
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
     context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text='Пожалуйста, выберите товар:',
+                                 text='*Пожалуйста*, выберите товар:',
+                                 parse_mode=constants.PARSEMODE_MARKDOWN_V2,
                                  reply_markup=reply_markup)
 
     return 'HANDLE_MENU'
@@ -100,23 +96,24 @@ def show_cart_menu(update: Update, context: CallbackContext, moltin_token):
 
 
 def handle_menu(update: Update, context: CallbackContext, moltin_token):
+
     if update.callback_query.data == 'no_previous_products_page':
         update.callback_query.answer('Это первая страница', show_alert=True)
+        return 'HANDLE_MENU'
+
     if update.callback_query.data == 'no_next_products_page':
         update.callback_query.answer('Это последняя страница', show_alert=True)
+        return 'HANDLE_MENU'
 
     if 'show_products_page' in update.callback_query.data:
         text, index_of_page = update.callback_query.data.split('::')
-
-        products = get_product_catalogue(moltin_token)['data']
-        serialized_products_datasets = serialize_products_catalogue(products)
-
-        reply_markup = display_page_keyboard(serialized_products_datasets, index_of_page)
-
+        product_dataset = get_product_catalogue(moltin_token)['data']
+        serialized_products_datasets = serialize_products_catalogue(product_dataset, MAX_PRODUCTS_PER_PAGE)
+        reply_markup = get_multipage_keyboard(serialized_products_datasets, index_of_page)
         context.bot.edit_message_reply_markup(chat_id=update.effective_chat.id,
                                               message_id = update.callback_query['message']['message_id'],
                                               reply_markup=reply_markup)
-
+        return 'HANDLE_MENU'
 
     if update.callback_query.data == 'at_cart':
         show_cart_menu(update, context, moltin_token)
@@ -132,11 +129,21 @@ def handle_menu(update: Update, context: CallbackContext, moltin_token):
     keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
 
     product_dataset = get_product_by_id(moltin_token, product_id)['data']
-    reply_markup = InlineKeyboardMarkup(keyboard)
     chat_id = update.effective_chat.id
     message_id = update.callback_query['message']['message_id']
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     product_main_img_id = product_dataset['relationships']['main_image']['data']['id']
     product_main_img_url = get_file_url(moltin_token, product_main_img_id)
+
+    cart_items = get_cart_items(moltin_token, chat_id)
+    products_in_cart = cart_items['data']
+    quantity_in_cart = 0
+    for product_in_cart in products_in_cart:
+        if product_in_cart['product_id'] == product_id:
+            quantity_in_cart = product_in_cart['quantity']
+
     context.bot.send_photo(chat_id=chat_id,
                            photo=product_main_img_url,
                            caption=dedent(f"""\
@@ -144,12 +151,11 @@ def handle_menu(update: Update, context: CallbackContext, moltin_token):
                            Цена: {product_dataset['price'][0]['amount']}{product_dataset['price'][0]['currency']}
                            Остатки на складе: {product_dataset['meta']['stock']['level']}
                            Описание товара: {product_dataset['description']}
+                           Уже в корзине: {quantity_in_cart}
                            """),
                            reply_markup=reply_markup
                            )
-
     context.bot.delete_message(chat_id=chat_id, message_id=message_id)
-
     return 'HANDLE_DESCRIPTION'
 
 
@@ -191,8 +197,15 @@ def handle_email(update: Update, context: CallbackContext, moltin_token):
     customer_first_name = update.message.from_user.first_name
     customer_last_name = update.message.from_user.last_name
     customer_email = update.message.text
-    create_new_customer(moltin_token, customer_first_name, customer_last_name, customer_email)
-
+    is_valid = validate_email(customer_email, check_mx=False)
+    if is_valid:
+        create_new_customer(moltin_token, customer_first_name, customer_last_name, customer_email)
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text='Спасибо. Ваши данные приняты. Мы обработаем Ваш заказ')
+        return 'START'
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text='Кажется, Вы ошиблись в указании почты. Попробуйте еще раз')
+    return 'WAITING_EMAIL'
 
 def handle_users_reply(update: Update, context: CallbackContext, moltin_token_dataset):
     """
